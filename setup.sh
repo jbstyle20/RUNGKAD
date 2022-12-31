@@ -5,14 +5,6 @@
 # Check Register IP
 MYIP=$(wget -qO- ipinfo.io/ip);
 echo "Checking VPS"
-IZIN=$( curl https://raw.githubusercontent.com/ariefrahman10/DAFTAR-IP/main/register.txt | grep "$MYIP" )
-if [ "$MYIP" = "$IZIN" ]; then
-echo -e "${NC}${GREEN}Permission Accepted...${NC}"
-else
-echo -e "${NC}${RED}DITOLAK MENTAH MENTAH WKWKWKWKKW!${NC}";
-echo -e "${NC}${LIGHT}MALLLLLLLLLLLLLIIIIIIIIIIIIGGGGGGGGGGGGGGGG!!"
-exit 0
-fi
 clear
 
 # Getting
