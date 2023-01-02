@@ -13,24 +13,47 @@ exit 0
 fi
 clear
 
-# Getting
-rm -rf xray
-rm -rf install
-clear
+mkdir -p /etc/xray 
+echo -e "[ ${green}INFO${NC} ] Checking... "
+apt install iptables iptables-persistent -y
+sleep 1
+echo -e "[ ${green}INFO$NC ] Setting ntpdate"
+ntpdate pool.ntp.org 
+timedatectl set-ntp true
+sleep 1
+echo -e "[ ${green}INFO$NC ] Enable chronyd"
+systemctl enable chronyd
+systemctl restart chronyd
+sleep 1
+echo -e "[ ${green}INFO$NC ] Enable chrony"
+systemctl enable chrony
+systemctl restart chrony
+timedatectl set-timezone Asia/Jakarta
+sleep 1
+echo -e "[ ${green}INFO$NC ] Setting chrony tracking"
+chronyc sourcestats -v
+chronyc tracking -v
+echo -e "[ ${green}INFO$NC ] Setting dll"
+apt clean all && apt update
+apt install curl socat xz-utils wget apt-transport-https gnupg gnupg2 gnupg1 dnsutils lsb-release -y 
+apt install socat cron bash-completion ntpdate -y
+ntpdate pool.ntp.org
+apt -y install chrony
+apt install zip -y
+apt install curl pwgen openssl netcat cron -y
 
-secs_to_human() {
-    echo "Installation time : $(( ${1} / 3600 )) hours $(( (${1} / 60) % 60 )) minute's $(( ${1} % 60 )) seconds"
-}
 start=$(date +%s)
 apt install socat netfilter-persistent fail2ban -y
 ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
 sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sysctl -w net.ipv6.conf.default.disable_ipv6=1
 mkdir /backup
-# Install Xray
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" - install --beta
-cp /usr/local/bin/xray /backup/xray.official.backup
-clear
+
+# install xray
+sleep 1
+echo -e "[ ${green}INFO$NC ] Downloading & Installing xray core"
+domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
+chown www-data.www-data $domainSock_dir
 # Make Folder XRay
 mkdir -p /var/log/xray
 mkdir -p /etc/xray
@@ -40,14 +63,8 @@ touch /var/log/xray/access.log
 touch /var/log/xray/error.log
 touch /var/log/xray/access2.log
 touch /var/log/xray/error2.log
-touch /var/log/xray/access3.log
-touch /var/log/xray/error3.log
-
-# Download New Xray
-cd /backup
-wget -O xray.mod.backup "https://github.com/dharak36/Xray-core/releases/download/v1.0.0/xray.linux.64bit"
-cd
-clear
+# / / Ambil Xray Core Version Terbaru
+bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version 1.5.6
 
 # Install Nginx
 apt install nginx -y
@@ -79,16 +96,287 @@ bash acme.sh --issue -d $domain --server letsencrypt --keylength ec-256 --fullch
 uuid=$(cat /proc/sys/kernel/random/uuid)
 # xray config
 cat > /etc/xray/config.json << END
-{}
+{
+  "log": {
+    "loglevel": "info",
+    "error": "/var/log/xray/error.log",
+    "access": "/var/log/xray/access.log"
+  },
+  "stats": {},
+  "api": {
+    "tag": "api",
+    "services": [
+      "StatsService"
+    ]
+  },
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true
+      },
+      "1": {
+        "handshake": 3,
+        "connIdle": 60,
+        "downlinkOnly": 0,
+        "uplinkOnly": 0,
+        "statsUserUplink": true,
+        "statsUserDownlink": true
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  },
+  "inbounds": [
+    {
+      "tag": "vmesswstls",
+      "port": 2001,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "alterId": 0
+#vmesswstls
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "path": "/vmess"
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10082,
+      "protocol": "dokodemo-door",
+      "settings": {
+        "address": "127.0.0.1"
+      },
+      "tag": "api"
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "settings": {}
+    },
+    {
+      "protocol": "socks",
+      "settings": {
+        "servers": [
+          {
+            "address": "127.0.0.1",
+            "port": 40000
+          }
+        ]
+      },
+      "tag": "socks5-warp"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPOnDemand",
+    "rules": [
+      {
+        "inboundTag": [
+          "api"
+        ],
+        "outboundTag": "api",
+        "type": "field"
+      },
+      {
+        "type": "field",
+       "ip": [
+          "0.0.0.0/8",
+          "10.0.0.0/8",
+          "100.64.0.0/10",
+          "127.0.0.0/8",
+          "169.254.0.0/16",
+          "172.16.0.0/12",
+          "192.0.0.0/24",
+          "192.0.2.0/24",
+          "192.168.0.0/16",
+          "198.18.0.0/15",
+          "198.51.100.0/24",
+          "203.0.113.0/24",
+          "::1/128",
+          "fc00::/7",
+          "fe80::/10"
+        ],
+        "outboundTag": "blocked"
+      },
+      {
+        "type": "field",
+        "protocol": [
+          "bittorrent"
+        ],
+        "outboundTag": "blocked"
+      }
+    ]
+  }
+}
 END
 
-cat > /etc/xray/sockswstls.json << END
-{}
+rm -rf /etc/xray/vmesswsnontls.json
+cat > /etc/xray/vmesswsnontls.json << END
+{
+  {
+  "log": {
+    "loglevel": "info",
+    "error": "/var/log/xray/error.log",
+    "access": "/var/log/xray/access.log"
+  },
+  "stats": {},
+  "api": {
+    "tag": "api",
+    "services": [
+      "StatsService"
+    ]
+  },
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true
+      },
+      "1": {
+        "handshake": 3,
+        "connIdle": 60,
+        "downlinkOnly": 0,
+        "uplinkOnly": 0,
+        "statsUserUplink": true,
+        "statsUserDownlink": true
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  },
+  "inbounds": [
+    {
+      "tag": "vmesswsnontls",
+      "port": 80,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${uuid}",
+            "alterId": 0
+#vmesswsnontls
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "path": "/worryfree"
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10081,
+      "protocol": "dokodemo-door",
+      "settings": {
+        "address": "127.0.0.1"
+      },
+      "tag": "api"
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "settings": {}
+    },
+    {
+      "protocol": "socks",
+      "settings": {
+        "servers": [
+          {
+            "address": "127.0.0.1",
+            "port": 40000
+          }
+        ]
+      },
+      "tag": "socks5-warp"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPOnDemand",
+    "rules": [
+      {
+        "inboundTag": [
+          "api"
+        ],
+        "outboundTag": "api",
+        "type": "field"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "0.0.0.0/8",
+          "10.0.0.0/8",
+          "100.64.0.0/10",
+          "127.0.0.0/8",
+          "169.254.0.0/16",
+          "172.16.0.0/12",
+          "192.0.0.0/24",
+          "192.0.2.0/24",
+          "192.168.0.0/16",
+          "198.18.0.0/15",
+          "198.51.100.0/24",
+          "203.0.113.0/24",
+          "::1/128",
+          "fc00::/7",
+          "fe80::/10"
+        ],
+        "outboundTag": "blocked"
+      },
+      {
+        "type": "field",
+        "protocol": [
+          "bittorrent"
+        ],
+        "outboundTag": "blocked"
+      }
+    ]
+  }
+}
+
+
+
+}
 END
 
-cat > /etc/xray/sockswsnontls.json << END
-{}
-END
 
 rm -rf /etc/systemd/system/xray.service.d
 cat <<EOF> /etc/systemd/system/xray.service
@@ -217,7 +505,6 @@ http {
 #               proxy      on;
 #       }
 #}
-
 EOF
 
 # Set Xray Nginx Conf
@@ -241,10 +528,10 @@ cat > /etc/nginx/conf.d/xray.conf << EOF
         }
 EOF
 
-sed -i '$ ilocation = /vmess-ws' /etc/nginx/conf.d/xray.conf
+sed -i '$ ilocation = /vmess' /etc/nginx/conf.d/xray.conf
 sed -i '$ i{' /etc/nginx/conf.d/xray.conf
 sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/xray.conf
-sed -i '$ iproxy_pass http://127.0.0.1:2002;' /etc/nginx/conf.d/xray.conf
+sed -i '$ iproxy_pass http://127.0.0.1:2001;' /etc/nginx/conf.d/xray.conf
 sed -i '$ iproxy_http_version 1.1;' /etc/nginx/conf.d/xray.conf
 sed -i '$ iproxy_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/xray.conf
 sed -i '$ iproxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;' /etc/nginx/conf.d/xray.conf
