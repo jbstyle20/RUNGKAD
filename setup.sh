@@ -1,10 +1,16 @@
 #!/bin/bash
 
-#!/bin/bash
-
 # Check Register IP
 MYIP=$(wget -qO- ipinfo.io/ip);
 echo "Checking VPS"
+IZIN=$( curl https://raw.githubusercontent.com/ariefrahman10/DAFTAR-IP/main/register.txt | grep "$MYIP" )
+if [ "$MYIP" = "$IZIN" ]; then
+echo -e "${NC}${GREEN}Permission Accepted...${NC}"
+else
+echo -e "${NC}${RED}DITOLAK MENTAH MENTAH WKWKWKWKKW!${NC}";
+echo -e "${NC}${LIGHT}MALLLLLLLLLLLLLIIIIIIIIIIIIGGGGGGGGGGGGGGGG!!"
+exit 0
+fi
 clear
 
 # Getting
@@ -85,7 +91,6 @@ cat > /etc/xray/sockswsnontls.json << END
 END
 
 rm -rf /etc/systemd/system/xray.service.d
-rm -rf /etc/systemd/system/xray@.service
 cat <<EOF> /etc/systemd/system/xray.service
 Description=Xray Service
 Documentation=https://github.com/xtls
@@ -97,6 +102,28 @@ CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
 ExecStart=/usr/local/bin/xray run -config /etc/xray/config.json
+Restart=on-failure
+RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+rm -rf /etc/systemd/system/xray@.service
+rm -rf /etc/systemd/system/xray@.service.d
+cat <<EOF> /etc/systemd/system/xray@.service
+Description=Xray Service
+Documentation=https://github.com/xtls
+After=network.target nss-lookup.target
+
+[Service]
+User=www-data
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ExecStart=/usr/local/bin/xray run -config /etc/xray/%i.json
 Restart=on-failure
 RestartPreventExitStatus=23
 LimitNPROC=10000
@@ -201,8 +228,6 @@ cat > /etc/nginx/conf.d/xray.conf << EOF
              return 301 https://$host$request_uri;
         }
     server {
-             listen 80;
-             listen [::]:80;
              listen 443 ssl http2 reuseport;
              listen [::]:443 http2 reuseport; 
              server_name 127.0.0.1 localhost;
@@ -215,3 +240,31 @@ cat > /etc/nginx/conf.d/xray.conf << EOF
              ssl_prefer_server_ciphers on;
         }
 EOF
+
+sed -i '$ ilocation = /vmess-ws' /etc/nginx/conf.d/xray.conf
+sed -i '$ i{' /etc/nginx/conf.d/xray.conf
+sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/xray.conf
+sed -i '$ iproxy_pass http://127.0.0.1:2002;' /etc/nginx/conf.d/xray.conf
+sed -i '$ iproxy_http_version 1.1;' /etc/nginx/conf.d/xray.conf
+sed -i '$ iproxy_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/xray.conf
+sed -i '$ iproxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;' /etc/nginx/conf.d/xray.conf
+sed -i '$ iproxy_set_header Upgrade \$http_upgrade;' /etc/nginx/conf.d/xray.conf
+sed -i '$ iproxy_set_header Connection "upgrade";' /etc/nginx/conf.d/xray.conf
+sed -i '$ iproxy_set_header Host \$http_host;' /etc/nginx/conf.d/xray.conf
+sed -i '$ i}' /etc/nginx/conf.d/xray.conf
+
+service nginx restart
+service xray restart
+
+echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
+echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+
+rm -f install
+secs_to_human "$(($(date +%s) - ${start}))"
+echo -ne "[ WARNING ] reboot now ? (Y/N) "
+read answer
+if [ "$answer" == "${answer#[Yy]}" ] ;then
+exit 0
+else
+reboot
+fi
