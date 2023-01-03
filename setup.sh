@@ -853,7 +853,7 @@ cat > /etc/nginx/conf.d/xray.conf << EOF
              ssl_protocols TLSv1.1 TLSv1.2 TLSv1.3;
              ssl_prefer_server_ciphers on;
         }
-
+EOF
         location = /vmess {
             proxy_redirect off;
             proxy_pass http://127.0.0.1:2001;
@@ -945,7 +945,7 @@ cat > /etc/nginx/conf.d/xray.conf << EOF
             index index.html index.htm;
         }
 }
-EOF
+
 
 sleep 1
 echo -e "$yell[SERVICE]$NC Restart All service"
