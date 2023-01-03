@@ -777,7 +777,8 @@ EOF
 cat << EOF > /usr/local/etc/xray/vmessgrpc.json
 {}
 EOF
-rm -rf /etc/systemd/system/xray.service.d
+
+
 cat <<EOF> /etc/systemd/system/xray.service
 Description=Xray Service
 Documentation=https://github.com/xtls
@@ -798,7 +799,6 @@ LimitNOFILE=1000000
 WantedBy=multi-user.target
 EOF
 
-rm -rf /etc/systemd/system/xray@.service.d
 cat <<EOF> /etc/systemd/system/xray@.service
 Description=Xray Service
 Documentation=https://github.com/xtls
