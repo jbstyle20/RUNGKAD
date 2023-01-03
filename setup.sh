@@ -49,17 +49,6 @@ systemctl start rc-local.service
 # set time GMT +7
 ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
 
-# set locale
-sed -i 's/AcceptEnv/#AcceptEnv/g' /etc/ssh/sshd_config
- 
-#alat
-sudo apt install -y libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev libcap-ng-utils libselinux1-dev libcurl4-nss-dev flex bison make libnss3-tools libevent-dev xl2tpd pptpd
-#update
-apt update -y
-apt upgrade -y
-apt dist-upgrade -y
-apt-get remove --purge ufw firewalld -y
-apt-get remove --purge exim4 -y
 
 # install wget and curl
 apt -y install wget curl
