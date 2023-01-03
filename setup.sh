@@ -12,36 +12,127 @@ echo -e "${NC}${LIGHT}MALLLLLLLLLLLLLIIIIIIIIIIIIGGGGGGGGGGGGGGGG!!"
 exit 0
 fi
 clear
+cd
 
-mkdir -p /etc/xray 
-echo -e "[ ${green}INFO${NC} ] Checking... "
-apt install iptables iptables-persistent -y
-sleep 1
-echo -e "[ ${green}INFO$NC ] Setting ntpdate"
-ntpdate pool.ntp.org 
-timedatectl set-ntp true
-sleep 1
-echo -e "[ ${green}INFO$NC ] Enable chronyd"
-systemctl enable chronyd
-systemctl restart chronyd
-sleep 1
-echo -e "[ ${green}INFO$NC ] Enable chrony"
-systemctl enable chrony
-systemctl restart chrony
-timedatectl set-timezone Asia/Jakarta
-sleep 1
-echo -e "[ ${green}INFO$NC ] Setting chrony tracking"
-chronyc sourcestats -v
-chronyc tracking -v
-echo -e "[ ${green}INFO$NC ] Setting dll"
-apt clean all && apt update
-apt install curl socat xz-utils wget apt-transport-https gnupg gnupg2 gnupg1 dnsutils lsb-release -y 
-apt install socat cron bash-completion ntpdate -y
-ntpdate pool.ntp.org
-apt -y install chrony
+# Edit file /etc/systemd/system/rc-local.service
+cat > /etc/systemd/system/rc-local.service <<-END
+[Unit]
+Description=/etc/rc.local
+ConditionPathExists=/etc/rc.local
+[Service]
+Type=forking
+ExecStart=/etc/rc.local start
+TimeoutSec=0
+StandardOutput=tty
+RemainAfterExit=yes
+SysVStartPriority=99
+[Install]
+WantedBy=multi-user.target
+END
+
+# nano /etc/rc.local
+cat > /etc/rc.local <<-END
+#!/bin/sh -e
+# rc.local
+# By default this script does nothing.
+screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500
+exit 0
+END
+
+# Ubah izin akses
+chmod +x /etc/rc.local
+
+# enable rc local
+systemctl enable rc-local
+systemctl start rc-local.service
+#
+# set time GMT +7
+ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+
+# set locale
+sed -i 's/AcceptEnv/#AcceptEnv/g' /etc/ssh/sshd_config
+ 
+#alat
+sudo apt install -y libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev libcap-ng-utils libselinux1-dev libcurl4-nss-dev flex bison make libnss3-tools libevent-dev xl2tpd pptpd
+#update
+apt update -y
+apt upgrade -y
+apt dist-upgrade -y
+apt-get remove --purge ufw firewalld -y
+apt-get remove --purge exim4 -y
+
+# install wget and curl
+apt -y install wget curl
+apt -y install net-tools
+
+# Install Requirements Tools
+apt install ruby -y
+apt install python -y
+apt install make -y
+apt install cmake -y
+apt install coreutils -y
+apt install rsyslog -y
+apt install net-tools -y
 apt install zip -y
-apt install curl pwgen openssl netcat cron -y
+apt install unzip -y
+apt install nano -y
+apt install sed -y
+apt install gnupg -y
+apt install gnupg1 -y
+apt install bc -y
+apt install jq -y
+apt install apt-transport-https -y
+apt install build-essential -y
+apt install dirmngr -y
+apt install libxml-parser-perl -y
+apt install neofetch -y
+apt install git -y
+apt install lsof -y
+apt install libsqlite3-dev -y
+apt install libz-dev -y
+apt install gcc -y
+apt install g++ -y
+apt install libreadline-dev -y
+apt install zlib1g-dev -y
+apt install libssl-dev -y
+apt install libssl1.0-dev -y
+apt install dos2unix -y
 
+#
+# install
+apt-get --reinstall --fix-missing install -y bzip2 gzip coreutils wget screen rsyslog iftop htop net-tools zip unzip wget net-tools curl nano sed screen gnupg gnupg1 bc apt-transport-https build-essential dirmngr libxml-parser-perl neofetch git lsof
+echo "clear" >> .profile
+echo "neofetch" >> .profile
+
+# install webserver
+apt -y install nginx php php-fpm php-cli php-mysql libxml-parser-perl
+rm /etc/nginx/sites-enabled/default
+rm /etc/nginx/sites-available/default
+curl https://${akbarvpn}/nginx.conf > /etc/nginx/nginx.conf
+curl https://${akbarvpn}/vps.conf > /etc/nginx/conf.d/vps.conf
+sed -i 's/listen = \/var\/run\/php-fpm.sock/listen = 127.0.0.1:9000/g' /etc/php/fpm/pool.d/www.conf
+useradd -m vps;
+mkdir -p /home/vps/public_html
+echo "<?php phpinfo() ?>" > /home/vps/public_html/info.php
+chown -R www-data:www-data /home/vps/public_html
+chmod -R g+rw /home/vps/public_html
+cd /home/vps/public_html
+wget -O /home/vps/public_html/index.html "https://${akbarvpn}/index.html1"
+/etc/init.d/nginx restart
+cd
+cd
+chown -R www-data:www-data /home/vps/public_html
+/etc/init.d/nginx restart
+cd
+
+# Getting
+rm -rf xray
+rm -rf install
+clear
+
+secs_to_human() {
+    echo "Installation time : $(( ${1} / 3600 )) hours $(( (${1} / 60) % 60 )) minute's $(( ${1} % 60 )) seconds"
+}
 start=$(date +%s)
 apt install socat netfilter-persistent fail2ban -y
 ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
@@ -49,11 +140,6 @@ sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sysctl -w net.ipv6.conf.default.disable_ipv6=1
 mkdir /backup
 
-# install xray
-sleep 1
-echo -e "[ ${green}INFO$NC ] Downloading & Installing xray core"
-domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
-chown www-data.www-data $domainSock_dir
 # Make Folder XRay
 mkdir -p /var/log/xray
 mkdir -p /etc/xray
@@ -63,8 +149,18 @@ touch /var/log/xray/access.log
 touch /var/log/xray/error.log
 touch /var/log/xray/access2.log
 touch /var/log/xray/error2.log
-# / / Ambil Xray Core Version Terbaru
+touch /var/log/xray/access3.log
+touch /var/log/xray/error3.log
+
+# Ambil Xray Core Version Terbaru
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version 1.5.6
+cp /usr/local/bin/xray /backup/xray.official.backup
+
+# Download New Xray
+cd /backup
+wget -O xray.mod.backup "https://github.com/dharak36/Xray-core/releases/download/v1.0.0/xray.linux.64bit"
+cd
+clear
 
 # Install Nginx
 apt install nginx -y
@@ -92,10 +188,315 @@ source ~/.bashrc
 cd .acme.sh
 bash acme.sh --issue -d $domain --server letsencrypt --keylength ec-256 --fullchain-file /usr/local/etc/xray/xray.crt --key-file /usr/local/etc/xray/xray.key --standalone --force
 
-# Setting
+# set uuid
 uuid=$(cat /proc/sys/kernel/random/uuid)
 # xray config
-cat > /etc/xray/config.json << END
+cat << EOF > /usr/local/etc/xray/config.json
+{}
+EOF
+cat << EOF > /usr/local/etc/xray/trojanwstls.json
+{
+  "log": {
+    "access": "/var/log/xray/access3.log",
+    "error": "/var/log/xray/error3.log",
+    "loglevel": "info"
+  },
+  "stats": {},
+  "api": {
+    "tag": "api",
+    "services": [
+      "StatsService"
+    ]
+  },
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  },
+  "dns": {
+    "servers": [
+      "localhost"
+    ],
+    "queryStrategy": "UseIPv4"
+  },
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "type": "field",
+        "ip": [
+          "1.1.1.1",
+          "1.0.0.1"
+        ],
+        "outboundTag": "IPv4-out"
+      },
+      {
+        "type": "field",
+        "domain": [
+          "geosite:rule-ads",
+          "geosite:rule-malicious"
+        ],
+        "outboundTag": "block"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "geoip:cn"
+        ],
+        "outboundTag": "block"
+      },
+      {
+        "inboundTag": [
+          "api"
+        ],
+        "outboundTag": "api",
+        "type": "field"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "tag": "TROJANWS",
+      "port": 2003,
+      "protocol": "trojan",
+      "settings": {
+        "clients": [
+          {
+            "password": "admin",
+            "email": "admin"
+#trojanwstls
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "path": "/trojan"
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10086,
+      "protocol": "dokodemo-door",
+      "settings": {
+        "address": "127.0.0.1"
+      },
+      "tag": "api"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      },
+      "tag": "IPv4-out"
+    },
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIPv6"
+      },
+      "tag": "IPv6-out"
+    },
+    {
+      "protocol": "blackhole",
+      "settings": {
+        "response": {
+          "type": "http"
+        }
+      },
+      "tag": "block"
+    }
+  ]
+}
+EOF
+cat << EOF > /usr/local/etc/xray/trojancf.json
+ {
+  "log": {
+    "access": "/var/log/xray/access3.log",
+    "error": "/var/log/xray/error3.log",
+    "loglevel": "info"
+  },
+  "stats": {},
+  "api": {
+    "tag": "api",
+    "services": [
+      "StatsService"
+    ]
+  },
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  },
+  "dns": {
+    "servers": [
+      "localhost"
+    ],
+    "queryStrategy": "UseIPv4"
+  },
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "type": "field",
+        "ip": [
+          "geoip:google"
+        ],
+        "outboundTag": "cloudflarewarp"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "1.1.1.1",
+          "1.0.0.1"
+        ],
+        "outboundTag": "IPv4-out"
+      },
+      {
+        "type": "field",
+        "domain": [
+          "geosite:rule-ads",
+          "geosite:rule-malicious"
+        ],
+        "outboundTag": "block"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "geoip:cn"
+        ],
+        "outboundTag": "block"
+      },
+      {
+        "inboundTag": [
+          "api"
+        ],
+        "outboundTag": "api",
+        "type": "field"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "tag": "TROJANCF",
+      "port": 2009,
+      "protocol": "trojan",
+      "settings": {
+        "clients": [
+          {
+            "password": "admin",
+            "email": "admin"
+#trojancf
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "path": "/trojancf"
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10090,
+      "protocol": "dokodemo-door",
+      "settings": {
+        "address": "127.0.0.1"
+      },
+      "tag": "api"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      },
+      "tag": "IPv4-out"
+    },
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIPv6"
+      },
+      "tag": "IPv6-out"
+    },
+    {
+      "protocol": "blackhole",
+    },
+    {
+      "protocol": "blackhole",
+      "settings": {
+        "response": {
+          "type": "http"
+        }
+      },
+      "tag": "block"
+    },
+    {
+      "protocol": "socks",
+      "settings": {
+        "servers": [
+          {
+            "address": "127.0.0.1",
+            "port": 40000
+          }
+        ]
+      },
+      "tag": "cloudflarewarp"
+    }
+  ]
+}
+EOF
+
+cat << EOF > /usr/local/etc/xray/trojangrpc.json
+{}
+EOF
+cat << EOF > /usr/local/etc/xray/vlesswstls.json
+{}
+EOF
+cat << EOF > /usr/local/etc/xray/vlessgrpc.json
+{}
+EOF
+cat << EOF > /usr/local/etc/xray/vmesswstls.json
 {
   "log": {
     "loglevel": "info",
@@ -139,7 +540,9 @@ cat > /etc/xray/config.json << END
       "settings": {
         "clients": [
           {
-            "id": "${uuid}",
+            "email": "adminadi",
+            "id": "b2422495-d0b1-47fd-a38f-e60c83527229",
+            "level": 0,
             "alterId": 0
 #vmesswstls
           }
@@ -231,11 +634,9 @@ cat > /etc/xray/config.json << END
     ]
   }
 }
-END
+EOF
 
-rm -rf /etc/xray/vmesswsnontls.json
-cat > /etc/xray/vmesswsnontls.json << END
-{
+cat << EOF > /usr/local/etc/xray/vmesswsnontls.json
   {
   "log": {
     "loglevel": "info",
@@ -279,10 +680,11 @@ cat > /etc/xray/vmesswsnontls.json << END
       "settings": {
         "clients": [
           {
-            "id": "${uuid}",
+            "email": "admin",
+            "id": "admin,
+            "level": 0,
             "alterId": 0
-#vmesswsnontls
-          }
+          },
         ],
         "decryption": "none"
       },
@@ -371,13 +773,10 @@ cat > /etc/xray/vmesswsnontls.json << END
     ]
   }
 }
-
-
-
-}
-END
-
-
+EOF
+cat << EOF > /usr/local/etc/xray/vmessgrpc.json
+{}
+EOF
 rm -rf /etc/systemd/system/xray.service.d
 cat <<EOF> /etc/systemd/system/xray.service
 Description=Xray Service
@@ -399,7 +798,6 @@ LimitNOFILE=1000000
 WantedBy=multi-user.target
 EOF
 
-rm -rf /etc/systemd/system/xray@.service
 rm -rf /etc/systemd/system/xray@.service.d
 cat <<EOF> /etc/systemd/system/xray@.service
 Description=Xray Service
@@ -526,32 +924,109 @@ cat > /etc/nginx/conf.d/xray.conf << EOF
              ssl_protocols TLSv1.1 TLSv1.2 TLSv1.3;
              ssl_prefer_server_ciphers on;
         }
+
+        location = /vmess {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:2001;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        location = /vless {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:2002;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        location = /trojan {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:2003;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        location /vmessgrpc {
+            if ($request_method != "POST") {
+                return 404;
+            }
+            client_body_buffer_size 1m;
+            client_body_timeout 1h;
+            client_max_body_size 0;
+            grpc_read_timeout 1h;
+            grpc_send_timeout 1h;
+                        grpc_set_header X-Real-IP $remote_addr;
+            grpc_pass grpc://127.0.0.1:2004;
+        }
+
+        location /vlessgrpc {
+            if ($request_method != "POST") {
+                return 404;
+            }
+            client_body_buffer_size 1m;
+            client_body_timeout 1h;
+            client_max_body_size 0;
+            grpc_read_timeout 1h;
+            grpc_send_timeout 1h;
+                        grpc_set_header X-Real-IP $remote_addr;
+            grpc_pass grpc://127.0.0.1:2005;
+        }
+        location /trojangrpc {
+            if ($request_method != "POST") {
+                return 404;
+            }
+            client_body_buffer_size 1m;
+            client_body_timeout 1h;
+            client_max_body_size 0;
+            grpc_read_timeout 1h;
+            grpc_send_timeout 1h;
+                        grpc_set_header X-Real-IP $remote_addr;
+            grpc_pass grpc://127.0.0.1:2006;
+        }
+
+        location = /trojancf {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:2009;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+        location / {
+            if ($host ~* "\d+\.\d+\.\d+\.\d+") {
+                return 400;
+            }
+            root /var/www/html;
+            index index.html index.htm;
+        }
+}
 EOF
 
-sed -i '$ ilocation = /vmess' /etc/nginx/conf.d/xray.conf
-sed -i '$ i{' /etc/nginx/conf.d/xray.conf
-sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/xray.conf
-sed -i '$ iproxy_pass http://127.0.0.1:2001;' /etc/nginx/conf.d/xray.conf
-sed -i '$ iproxy_http_version 1.1;' /etc/nginx/conf.d/xray.conf
-sed -i '$ iproxy_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/xray.conf
-sed -i '$ iproxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;' /etc/nginx/conf.d/xray.conf
-sed -i '$ iproxy_set_header Upgrade \$http_upgrade;' /etc/nginx/conf.d/xray.conf
-sed -i '$ iproxy_set_header Connection "upgrade";' /etc/nginx/conf.d/xray.conf
-sed -i '$ iproxy_set_header Host \$http_host;' /etc/nginx/conf.d/xray.conf
-sed -i '$ i}' /etc/nginx/conf.d/xray.conf
-
-service nginx restart
-service xray restart
-
-echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
-echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
-
-rm -f install
-secs_to_human "$(($(date +%s) - ${start}))"
-echo -ne "[ WARNING ] reboot now ? (Y/N) "
-read answer
-if [ "$answer" == "${answer#[Yy]}" ] ;then
-exit 0
-else
-reboot
-fi
+sleep 1
+echo -e "$yell[SERVICE]$NC Restart All service"
+systemctl daemon-reload
+sleep 1
+echo -e "[ ${green}ok${NC} ] Enable & restart xray "
+systemctl enable xray
+systemctl restart xray
+systemctl restart nginx
+#done
+clear
+#rm -f ins-xray.sh
+rm -f setup.sh.sh
