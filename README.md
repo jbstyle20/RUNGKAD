@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/LINK_DIBAWAH%20-green">
    
 ```html
-rm -rf setup.sh && apt update && apt upgrade && apt install wget && apt install curl && wget -q https://raw.githubusercontent.com/ariefrahman10/RUNGKAD/main/setup.sh && chmod +x setup.sh && ./setup.sh
+rm -rf setup.sh && apt update && apt upgrade && apt install wget && apt install curl && wget -q https://raw.githubusercontent.com/jbstyle20/RUNGKAD/main/setup.sh && chmod +x setup.sh && ./setup.sh
 ```
 
 
