@@ -69,6 +69,12 @@ sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sysctl -w net.ipv6.conf.default.disable_ipv6=1
 mkdir /backup
 
+
+# install xray
+sleep 1
+echo -e "Downloading & Installing xray core"
+domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
+chown www-data.www-data $domainSock_dir
 # Make Folder XRay
 mkdir -p /var/log/xray
 mkdir -p /etc/xray
@@ -83,13 +89,7 @@ touch /var/log/xray/error3.log
 
 # Ambil Xray Core Version Terbaru
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version 1.5.6
-cp /usr/local/bin/xray /backup/xray.official.backup
 
-# Download New Xray
-cd /backup
-wget -O xray.mod.backup "https://github.com/dharak36/Xray-core/releases/download/v1.0.0/xray.linux.64bit"
-cd
-clear
 
 # Install Nginx
 apt install nginx -y
@@ -470,8 +470,8 @@ cat << EOF > /usr/local/etc/xray/vmesswstls.json
       "settings": {
         "clients": [
           {
-            "email": "adminadi",
-            "id": "b2422495-d0b1-47fd-a38f-e60c83527229",
+            "email": "admin",
+            "id": "$uuid",
             "level": 0,
             "alterId": 0
 #vmesswstls
@@ -611,9 +611,10 @@ cat << EOF > /usr/local/etc/xray/vmesswsnontls.json
         "clients": [
           {
             "email": "admin",
-            "id": "admin,
+            "id": "$uuid",
             "level": 0,
             "alterId": 0
+#vmesswsnontls
           },
         ],
         "decryption": "none"
